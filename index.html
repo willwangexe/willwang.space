@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>William Wang | Portfolio</title>
+  <meta
+    name="description"
+    content="A minimal, space-inspired portfolio with glassmorphism, animated starfield, and calm modern typography."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <div class="page-shell">
+    <header class="site-header glass reveal">
+      <a class="brand" href="#hero">WW</a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#about">About</a>
+        <a href="#projects">Projects</a>
+        <a href="#footer">Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero reveal" id="hero">
+        <p class="eyebrow">Calm systems, intentional experiences, clear direction</p>
+        <h1>William Wang</h1>
+        <p class="hero-copy">
+          I design and build minimal digital spaces that feel cinematic, precise, and quietly memorable.
+        </p>
+
+        <div class="hero-cta glass">
+          <input type="email" placeholder="Enter your email for updates" aria-label="Email address">
+          <button type="button">Enter Orbit</button>
+        </div>
+      </section>
+
+      <section class="content-section reveal" id="about">
+        <div class="section-heading">
+          <p class="eyebrow">About</p>
+          <h2>Thoughtful work with atmosphere and restraint.</h2>
+        </div>
+
+        <div class="about-panel glass">
+          <p>
+            I’m a designer and developer drawn to clarity, motion, and quiet detail. My approach blends strong
+            visual systems with lightweight front-end craft so each interaction feels effortless.
+          </p>
+          <p>
+            I care about rhythm, typography, and the emotional tone of a product. The goal is simple:
+            build work that feels calm, premium, and deeply considered.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-section reveal" id="projects">
+        <div class="section-heading">
+          <p class="eyebrow">Projects</p>
+          <h2>Selected explorations.</h2>
+        </div>
+
+        <div class="project-grid">
+          <article class="project-card glass">
+            <span class="project-index">01</span>
+            <h3>Nova Archive</h3>
+            <p>
+              An editorial portfolio concept shaped around visual storytelling, spacious composition, and slow interaction.
+            </p>
+            <a href="#footer">View direction</a>
+          </article>
+
+          <article class="project-card glass">
+            <span class="project-index">02</span>
+            <h3>Signal Studio</h3>
+            <p>
+              A refined brand platform focused on elegant launch pages, product positioning, and clear conversion paths.
+            </p>
+            <a href="#footer">See details</a>
+          </article>
+
+          <article class="project-card glass">
+            <span class="project-index">03</span>
+            <h3>Atlas Notes</h3>
+            <p>
+              A minimalist writing environment concept designed for deep focus, long-form thinking, and graceful structure.
+            </p>
+            <a href="#footer">Read concept</a>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer glass reveal" id="footer">
+      <div>
+        <p class="eyebrow">Footer</p>
+        <h2>Open to thoughtful collaborations.</h2>
+      </div>
+      <div class="footer-meta">
+        <p>For product design, digital identity, and front-end direction.</p>
+        <a href="mailto:hello@example.com">hello@example.com</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
