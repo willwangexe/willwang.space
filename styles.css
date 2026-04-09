@@ -29,10 +29,28 @@ body {
   pointer-events: none;
 }
 
+#planet-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#object-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .nav-annotations {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 3;
   width: 100%;
   height: 100%;
   overflow: visible;
@@ -75,7 +93,7 @@ body {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -136,6 +154,8 @@ body {
 }
 
 .intro {
+  position: relative;
+  z-index: 1;
   width: min(calc(100% - 2rem), var(--max-width));
   margin: 0 auto;
   min-height: 100vh;
@@ -150,7 +170,7 @@ body {
 
 .intro-kicker {
   color: rgba(243, 239, 231, 0.5);
-  font-size: 0.78rem;
+  font-size: 0.8775rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
@@ -160,7 +180,7 @@ h1 {
   font-weight: 600;
   line-height: 0.95;
   letter-spacing: -0.03em;
-  font-size: clamp(3rem, 9vw, 6rem);
+  font-size: clamp(5.25rem, 15.75vw, 10.5rem);
 }
 
 .intro-copy {
@@ -172,7 +192,42 @@ h1 {
 @media (max-width: 640px) {
   .intro {
     width: min(calc(100% - 1rem), var(--max-width));
+    min-height: auto;
+    align-content: start;
     justify-items: start;
     text-align: left;
+    gap: 0.7rem;
+    padding: max(1.25rem, env(safe-area-inset-top)) 0 0;
+  }
+
+  h1 {
+    font-size: clamp(3.6rem, 14vw, 5.8rem);
+  }
+
+  .intro-copy {
+    max-width: 20rem;
+  }
+
+  .intro-kicker {
+    max-width: 18rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .intro {
+    min-height: auto;
+    align-content: start;
+    gap: 0.8rem;
+    padding-top: 2.5rem;
+  }
+
+  h1 {
+    font-size: clamp(4.4rem, 11vw, 7.2rem);
+  }
+
+  .intro-copy {
+    max-width: 30rem;
   }
 }
