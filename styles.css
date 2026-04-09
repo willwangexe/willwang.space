@@ -18,6 +18,38 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   min-height: 100vh;
+  transition: background-color 4.5s ease, color 4.5s ease;
+}
+
+body.warp-invert {
+  background: #ffffff;
+  color: #05070d;
+}
+
+#scene-canvas,
+#planet-canvas,
+#object-canvas,
+.intro,
+.intro-kicker,
+.intro-copy,
+h1 {
+  transition: filter 4.5s ease, color 4.5s ease;
+}
+
+body.warp-invert #scene-canvas {
+  filter: invert(1) hue-rotate(180deg) brightness(0.14) contrast(4.2);
+}
+
+body.warp-invert #planet-canvas,
+body.warp-invert #object-canvas {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+body.warp-invert .intro,
+body.warp-invert .intro-kicker,
+body.warp-invert .intro-copy,
+body.warp-invert h1 {
+  color: #05070d;
 }
 
 #scene-canvas {

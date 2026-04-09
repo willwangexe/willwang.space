@@ -8,6 +8,7 @@ const overlay = document.getElementById("overlay");
 const overlayClose = document.getElementById("overlay-close");
 const overlayTitle = document.getElementById("overlay-title");
 const overlayBody = document.getElementById("overlay-body");
+const bodyElement = document.body;
 
 const backgroundRenderer = new THREE.WebGLRenderer({
   canvas: backgroundCanvas,
@@ -55,6 +56,8 @@ const pointer = { x: 0, y: 0 };
 const pulse = { value: 0 };
 const thrust = { value: 0, target: 0 };
 const warp = { value: 0, target: 0 };
+const brake = { value: 0, target: 0 };
+const inversionState = { readyAt: null };
 const pointerNdc = new THREE.Vector2(0, 0);
 const raycaster = new THREE.Raycaster();
 const focusState = {
@@ -558,7 +561,12 @@ objectScene.add(frontPlanetGroup);
 objectScene.add(frontDecorGroup);
 
 function createCelestialBody(definition) {
-  const geometry = new THREE.IcosahedronGeometry(1, definition.detail);
+  const geometry =
+    definition.baseGeometry === "octahedron"
+      ? new THREE.OctahedronGeometry(1, definition.detail)
+      : definition.baseGeometry === "dodecahedron"
+        ? new THREE.DodecahedronGeometry(1, definition.detail)
+        : new THREE.IcosahedronGeometry(1, definition.detail);
   const positionAttribute = geometry.attributes.position;
   const colorBuffer = new Float32Array(positionAttribute.count * 3);
   const color = new THREE.Color();
@@ -578,13 +586,19 @@ function createCelestialBody(definition) {
   const equatorBulgeStrength = definition.equatorBulgeStrength ?? 0;
   const polePinchStrength = definition.polePinchStrength ?? 0;
   const asymmetryStrength = definition.asymmetryStrength ?? 0;
+  const cleftStrength = definition.cleftStrength ?? 0;
+  const chunkStrength = definition.chunkStrength ?? 0;
+  const taperStrength = definition.taperStrength ?? 0;
+  const skewStrengthX = definition.skewStrengthX ?? 0;
+  const skewStrengthY = definition.skewStrengthY ?? 0;
+  const skewStrengthZ = definition.skewStrengthZ ?? 0;
 
   for (let i = 0; i < positionAttribute.count; i += 1) {
     vector.fromBufferAttribute(positionAttribute, i);
     vector.set(
-      vector.x * axisScale.x,
-      vector.y * axisScale.y,
-      vector.z * axisScale.z
+      vector.x * axisScale.x + vector.y * skewStrengthX + vector.z * skewStrengthZ * 0.35,
+      vector.y * axisScale.y + vector.x * skewStrengthY - vector.z * skewStrengthX * 0.18,
+      vector.z * axisScale.z + vector.x * skewStrengthZ
     );
     normal.copy(vector).normalize();
 
@@ -612,6 +626,19 @@ function createCelestialBody(definition) {
       const endBulge = smoothstep(0.18, 0.92, alongBody) * endBulgeStrength;
       const waistPinch = (1.0 - smoothstep(0.0, 0.45, alongBody)) * waistPinchStrength;
       profileWarp += endBulge - waistPinch;
+    } else if (shapeProfile === "shard") {
+      const nose = Math.max(0, normal.z) * taperStrength;
+      const tail = Math.max(0, -normal.z) * taperStrength * 0.55;
+      const ridgeLine = Math.abs(normal.x * 0.75 + normal.y * 0.25);
+      profileWarp += nose - tail + ridgeLine * chunkStrength - Math.abs(normal.y) * 0.08;
+    } else if (shapeProfile === "chunk") {
+      const angularChunk =
+        Math.sin((normal.x * 3.8 - normal.y * 2.1 + normal.z * 2.6) * definition.craterScale + definition.seed * 0.8);
+      const brokenFace =
+        Math.cos((normal.x * 1.6 + normal.y * 3.4 - normal.z * 1.8) * definition.craterScale * 0.7 - definition.seed);
+      profileWarp +=
+        Math.max(0, angularChunk) * chunkStrength -
+        Math.max(0, -brokenFace) * chunkStrength * 0.45;
     } else if (shapeProfile === "top") {
       const equatorBulge = (1.0 - Math.abs(normal.y)) * equatorBulgeStrength;
       const polePinch = Math.max(0, -normal.y) * polePinchStrength + Math.max(0, normal.y) * polePinchStrength * 0.4;
@@ -620,6 +647,10 @@ function createCelestialBody(definition) {
       profileWarp +=
         Math.sin((normal.x * 2.2 - normal.z * 1.6 + normal.y) * definition.craterScale * 0.35 + definition.seed) *
         0.06;
+    }
+    if (cleftStrength > 0) {
+      const cleft = 1.0 - Math.abs(normal.x * 0.82 - normal.z * 0.38);
+      profileWarp -= Math.max(0, cleft - 0.55) * cleftStrength;
     }
     const displacement =
       1 +
@@ -979,6 +1010,7 @@ const decorAsteroidPalettes = [
 function createRandomDecorAsteroidDefinition(index) {
   const palette = decorAsteroidPalettes[index % decorAsteroidPalettes.length];
   const shapeMode = Math.random();
+  let baseGeometry;
   let axisScale;
   let shapeProfile;
   let endBulgeStrength = 0;
@@ -986,40 +1018,77 @@ function createRandomDecorAsteroidDefinition(index) {
   let equatorBulgeStrength = 0;
   let polePinchStrength = 0;
   let asymmetryStrength = 0;
+  let cleftStrength = 0;
+  let chunkStrength = 0;
+  let taperStrength = 0;
+  let skewStrengthX = 0;
+  let skewStrengthY = 0;
+  let skewStrengthZ = 0;
 
-  if (shapeMode < 0.33) {
+  if (shapeMode < 0.2) {
+    baseGeometry = "icosahedron";
     shapeProfile = "potato";
     axisScale = {
-      x: 0.48 + Math.random() * 0.7,
-      y: 0.62 + Math.random() * 0.6,
-      z: 0.86 + Math.random() * 0.9,
+      x: 0.52 + Math.random() * 0.9,
+      y: 0.74 + Math.random() * 0.72,
+      z: 0.8 + Math.random() * 1.15,
     };
-  } else if (shapeMode < 0.66) {
+    skewStrengthX = (Math.random() - 0.5) * 0.18;
+    skewStrengthZ = (Math.random() - 0.5) * 0.16;
+  } else if (shapeMode < 0.4) {
+    baseGeometry = "dodecahedron";
     shapeProfile = "dogbone";
     axisScale = {
-      x: 0.58 + Math.random() * 0.55,
-      y: 0.54 + Math.random() * 0.38,
-      z: 0.95 + Math.random() * 0.95,
+      x: 0.62 + Math.random() * 0.55,
+      y: 0.76 + Math.random() * 0.38,
+      z: 1.08 + Math.random() * 1.2,
     };
-    endBulgeStrength = 0.18 + Math.random() * 0.22;
-    waistPinchStrength = 0.16 + Math.random() * 0.2;
+    endBulgeStrength = 0.24 + Math.random() * 0.26;
+    waistPinchStrength = 0.2 + Math.random() * 0.22;
+    cleftStrength = 0.06 + Math.random() * 0.1;
+  } else if (shapeMode < 0.6) {
+    baseGeometry = "octahedron";
+    shapeProfile = "shard";
+    axisScale = {
+      x: 0.54 + Math.random() * 0.58,
+      y: 0.76 + Math.random() * 0.56,
+      z: 1.08 + Math.random() * 1.35,
+    };
+    taperStrength = 0.16 + Math.random() * 0.22;
+    chunkStrength = 0.12 + Math.random() * 0.18;
+    skewStrengthY = (Math.random() - 0.5) * 0.22;
+    skewStrengthZ = (Math.random() - 0.5) * 0.18;
+  } else if (shapeMode < 0.8) {
+    baseGeometry = "dodecahedron";
+    shapeProfile = "chunk";
+    axisScale = {
+      x: 0.68 + Math.random() * 0.86,
+      y: 0.72 + Math.random() * 0.78,
+      z: 0.72 + Math.random() * 0.92,
+    };
+    chunkStrength = 0.18 + Math.random() * 0.24;
+    cleftStrength = 0.08 + Math.random() * 0.12;
+    skewStrengthX = (Math.random() - 0.5) * 0.2;
+    skewStrengthY = (Math.random() - 0.5) * 0.16;
   } else {
+    baseGeometry = "icosahedron";
     shapeProfile = "top";
     axisScale = {
-      x: 0.82 + Math.random() * 0.72,
-      y: 0.56 + Math.random() * 0.5,
-      z: 0.82 + Math.random() * 0.72,
+      x: 0.76 + Math.random() * 0.88,
+      y: 0.9 + Math.random() * 0.54,
+      z: 0.76 + Math.random() * 0.88,
     };
-    equatorBulgeStrength = 0.14 + Math.random() * 0.18;
-    polePinchStrength = 0.12 + Math.random() * 0.16;
-    asymmetryStrength = 0.04 + Math.random() * 0.08;
+    equatorBulgeStrength = 0.12 + Math.random() * 0.18;
+    polePinchStrength = 0.04 + Math.random() * 0.08;
+    asymmetryStrength = 0.06 + Math.random() * 0.12;
+    skewStrengthX = (Math.random() - 0.5) * 0.12;
   }
 
   return {
     ...decorAsteroidDefinition,
     ...palette,
     detail: 2 + Math.floor(Math.random() * 3),
-    scale: 1.2 + Math.random() * 11.9,
+    scale: 1.2 + Math.random() * 14.875,
     bumpiness: 0.14 + Math.random() * 0.22,
     craterDepth: 0.08 + Math.random() * 0.18,
     noiseScaleA: 4.4 + Math.random() * 4.6,
@@ -1035,10 +1104,17 @@ function createRandomDecorAsteroidDefinition(index) {
     equatorBulgeStrength,
     polePinchStrength,
     asymmetryStrength,
+    cleftStrength,
+    chunkStrength,
+    taperStrength,
+    skewStrengthX,
+    skewStrengthY,
+    skewStrengthZ,
     seed: decorAsteroidDefinition.seed + index * 0.83 + Math.random() * 2.2,
     roughness: 0.9 + Math.random() * 0.08,
     flatShading: Math.random() < 0.35,
     axisScale,
+    baseGeometry,
   };
 }
 
@@ -1155,7 +1231,7 @@ const navObjects = navDefinitions.map((definition) => {
   return body;
 });
 
-const decorAsteroids = Array.from({ length: 2 }, (_, index) => {
+const decorAsteroids = Array.from({ length: 1 }, (_, index) => {
   const body = createCelestialBody(createRandomDecorAsteroidDefinition(index));
   body.userData.bodyType = "asteroid";
   body.userData.decor = true;
@@ -1272,8 +1348,9 @@ function animate() {
   pointer.y += (mouse.y - pointer.y) * 0.03;
   pulse.value *= 0.94;
   thrust.value += (thrust.target - thrust.value) * 0.045;
+  brake.value += (brake.target - brake.value) * 0.14;
   if (warp.target) {
-    warp.value += delta * 0.9;
+    warp.value += delta * 2.64;
   } else {
     warp.value += (0 - warp.value) * 0.045;
   }
@@ -1314,12 +1391,23 @@ function animate() {
   }
 
   hoverCinematic.amount += ((hoverCinematic.object ? 1 : 0) - hoverCinematic.amount) * 0.12;
+  const effectiveHoverAmount = Math.max(hoverCinematic.amount, brake.value);
 
-  const starTimeScale = Math.max(0.015, 1 - hoverCinematic.amount * 0.985);
-  const navTimeScale = Math.max(0.008, 1 - hoverCinematic.amount * 0.992);
+  const starTimeScale = Math.max(0.015, 1 - effectiveHoverAmount * 0.985);
+  const navTimeScale = Math.max(0.008, 1 - effectiveHoverAmount * 0.992);
   const warpVisual = Math.min(warp.value, 1.2);
   const warpScale = 1 + warp.value * 22;
   const suppressRespawns = warp.value > 0.18;
+  const reachedWarpThreshold = warp.value > 1.65;
+  if (warp.target && reachedWarpThreshold) {
+    if (inversionState.readyAt == null) {
+      inversionState.readyAt = elapsed + 4;
+    }
+  } else {
+    inversionState.readyAt = null;
+  }
+  const invertWarp = inversionState.readyAt != null && elapsed >= inversionState.readyAt;
+  bodyElement.classList.toggle("warp-invert", invertWarp);
 
   for (let i = 0; i < starCount; i += 1) {
     const i3 = i * iStep;
@@ -1347,7 +1435,7 @@ function animate() {
 
   camera.position.x += ((-pointer.x * 3.5) - camera.position.x) * 0.02;
   camera.position.y += ((pointer.y * 2.25) - camera.position.y) * 0.02;
-  camera.position.z += ((6 - hoverCinematic.amount * 1.25) - camera.position.z) * 0.06;
+  camera.position.z += ((6 - effectiveHoverAmount * 1.25) - camera.position.z) * 0.06;
   focusState.amount += (focusState.targetAmount - focusState.amount) * 0.055;
   const clickFocusObject = focusState.object;
   const clickFocusAmount = focusState.amount;
@@ -1356,7 +1444,7 @@ function animate() {
   const focusZ = clickFocusObject ? clickFocusObject.position.z * clickFocusAmount : -300;
   camera.lookAt(-pointer.x * 22.5 + focusX, pointer.y * 12.5 + focusY, focusZ);
   camera.rotation.z += ((pointer.x * 0.015) - camera.rotation.z) * 0.015;
-  camera.fov += ((65 + warpVisual * 11 - hoverCinematic.amount * 6.5) - camera.fov) * 0.08;
+  camera.fov += ((65 + warpVisual * 11 - effectiveHoverAmount * 6.5) - camera.fov) * 0.08;
   camera.updateProjectionMatrix();
 
   stars.rotation.z +=
@@ -1381,7 +1469,7 @@ function animate() {
       60
     );
     const cruiseSpeed =
-      ((0.6654375 + pulse.value * 0.11090625 + thrust.value * 3.08953125) *
+      ((0.53235 + pulse.value * 0.088725 + thrust.value * 2.471625) *
         (1.05 + depthFactor * 1.1) *
         accelerationFactor) *
       navTimeScale;
@@ -1561,8 +1649,8 @@ function animate() {
     const lineScale = THREE.MathUtils.lerp(1.9, 1.0, edgeProximity);
     const horizontalSign = screen.x >= 0 ? 1 : -1;
     const verticalSign = screen.y >= 0 ? -1 : 1;
-    const baseOffsetX = compactViewport ? 74 : 96;
-    const baseOffsetY = compactViewport ? 52 : 68;
+    const baseOffsetX = compactViewport ? 83 : 108;
+    const baseOffsetY = compactViewport ? 59 : 77;
     const labelOffsetX = horizontalSign * baseOffsetX * lineScale;
     const labelOffsetY =
       verticalSign *
@@ -1624,7 +1712,8 @@ function animate() {
   });
 
   shootingStars.forEach((shootingState) => {
-    if (hoverCinematic.amount > 0.1) {
+    if (hoverCinematic.amount > 0.1 || reachedWarpThreshold) {
+      shootingState.active = false;
       shootingState.material.opacity *= 0.82;
       return;
     }
@@ -1707,6 +1796,9 @@ function clearTransientInteractionState() {
   hoverCinematic.releaseAt = 0;
   thrust.target = 0;
   warp.target = 0;
+  brake.target = 0;
+  inversionState.readyAt = null;
+  bodyElement.classList.remove("warp-invert");
   pointerState.insideWindow = false;
 }
 
@@ -1741,6 +1833,18 @@ window.addEventListener("pointerup", () => {
 window.addEventListener("pointercancel", () => {
   thrust.target = 0;
   warp.target = 0;
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.code === "Space" && !event.repeat) {
+    brake.target = 1;
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.code === "Space") {
+    brake.target = 0;
+  }
 });
 
 window.addEventListener("blur", () => {
