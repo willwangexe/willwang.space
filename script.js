@@ -1105,11 +1105,20 @@ function boxesOverlap(a, b, padding = 16) {
 
 function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajectoryY, steps = 16) {
   const samples = [];
+  const depthFactor = 0.83;
+  const parallaxX = -pointer.x * (5 + depthFactor * 12.8);
+  const parallaxY = -pointer.y * (3.4 + depthFactor * 8.9);
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
     const z = THREE.MathUtils.lerp(startZ, camera.position.z + 16, t);
-    const x = baseX + (180 + t * 260) * trajectoryX;
-    const y = baseY + (190 + t * 240) * trajectoryY;
+    const distanceToCamera = Math.max(1, camera.position.z - z);
+    const proximity = THREE.MathUtils.clamp(
+      1 - (distanceToCamera - 160) / 1200,
+      0,
+      1
+    );
+    const x = baseX + parallaxX + (180 + proximity * 260) * trajectoryX;
+    const y = baseY + parallaxY + (190 + proximity * 240) * trajectoryY;
     samples.push(new THREE.Vector3(x, y, z));
   }
   return samples;
@@ -1121,11 +1130,14 @@ function getPlanetPathSamples(object3d, steps = 10) {
   const targetZ = camera.position.z + 4;
   const baseX = object3d.userData.baseX ?? object3d.position.x;
   const baseY = object3d.userData.baseY ?? object3d.position.y;
+  const depthFactor = object3d.userData.depthLayer ?? 0.83;
+  const parallaxX = -pointer.x * (4.8 + depthFactor * 12.6);
+  const parallaxY = -pointer.y * (3.2 + depthFactor * 8.5);
 
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
     const z = THREE.MathUtils.lerp(startZ, targetZ, t);
-    samples.push(new THREE.Vector3(baseX, baseY, z));
+    samples.push(new THREE.Vector3(baseX + parallaxX, baseY + parallaxY, z));
   }
 
   return samples;
@@ -1134,11 +1146,14 @@ function getPlanetPathSamples(object3d, steps = 10) {
 function getPlanetPathSamplesForPosition(baseX, baseY, startZ, steps = 10) {
   const samples = [];
   const targetZ = camera.position.z + 4;
+  const depthFactor = 0.83;
+  const parallaxX = -pointer.x * (4.8 + depthFactor * 12.6);
+  const parallaxY = -pointer.y * (3.2 + depthFactor * 8.5);
 
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
     const z = THREE.MathUtils.lerp(startZ, targetZ, t);
-    samples.push(new THREE.Vector3(baseX, baseY, z));
+    samples.push(new THREE.Vector3(baseX + parallaxX, baseY + parallaxY, z));
   }
 
   return samples;
@@ -1506,7 +1521,7 @@ function animate() {
   const reachedWarpThreshold = warp.value > 1.65;
   if (warp.target && reachedWarpThreshold) {
     if (inversionState.readyAt == null) {
-      inversionState.readyAt = elapsed + 4;
+      inversionState.readyAt = elapsed + 1;
     }
   } else {
     inversionState.readyAt = null;
@@ -1655,11 +1670,13 @@ function animate() {
     );
     const bodySpeedFactor = 2.232;
     const accelerationFactor = 1 + proximity * 0.108 + proximity * proximity * 0.063;
+    const planetWarpBoost = 1 + warp.value * 4;
     const cruiseSpeed =
       ((0.42 + pulse.value * 0.07 + thrust.value * 2.15) *
         (0.98 + depthFactor * 1.18) *
         accelerationFactor) *
       bodySpeedFactor *
+      planetWarpBoost *
       navTimeScale;
     const wave = elapsed * (0.08 + depthFactor * 0.12) + object3d.userData.driftOffset;
     const parallaxX = -pointer.x * (4.8 + depthFactor * 12.6);

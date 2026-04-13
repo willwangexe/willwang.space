@@ -18,7 +18,7 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   min-height: 100vh;
-  transition: background-color 4.5s ease, color 4.5s ease;
+  transition: background-color 7.5s ease, color 7.5s ease;
 }
 
 body.warp-invert {
@@ -33,7 +33,7 @@ body.warp-invert {
 .intro-kicker,
 .intro-copy,
 h1 {
-  transition: filter 4.5s ease, color 4.5s ease;
+  transition: filter 7.5s ease, color 7.5s ease;
 }
 
 body.warp-invert #scene-canvas {
