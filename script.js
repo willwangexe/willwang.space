@@ -434,12 +434,10 @@ function randomDecorAsteroidPosition(z) {
   const viewWidth = viewHeight * camera.aspect;
   const halfWidth = viewWidth * 0.5;
   const halfHeight = viewHeight * 0.5;
-  const side = Math.random() < 0.5 ? -1 : 1;
-  const verticalSide = Math.random() < 0.5 ? -1 : 1;
 
   return {
-    x: side * THREE.MathUtils.lerp(halfWidth * 0.12, halfWidth * 0.22, Math.random()),
-    y: verticalSide * THREE.MathUtils.lerp(halfHeight * 0.005, halfHeight * 0.0125, Math.random()),
+    x: (Math.random() - 0.5) * halfWidth * 0.08,
+    y: (Math.random() - 0.5) * halfHeight * 0.0025,
   };
 }
 
@@ -1059,6 +1057,10 @@ function createRandomDecorAsteroidDefinition(index) {
   };
 }
 
+function randomDecorAsteroidScale() {
+  return 0.5 + Math.random() * 30;
+}
+
 function getNavLabelBoxForPosition(position) {
   const screen = position.clone().project(camera);
   const x = (screen.x * 0.5 + 0.5) * window.innerWidth;
@@ -1101,7 +1103,7 @@ function boxesOverlap(a, b, padding = 16) {
   );
 }
 
-function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajectoryY, steps = 6) {
+function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajectoryY, steps = 16) {
   const samples = [];
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
@@ -1113,7 +1115,7 @@ function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajecto
   return samples;
 }
 
-function getPlanetPathSamples(object3d, steps = 6) {
+function getPlanetPathSamples(object3d, steps = 10) {
   const samples = [];
   const startZ = object3d.position.z;
   const targetZ = camera.position.z + 4;
@@ -1129,23 +1131,37 @@ function getPlanetPathSamples(object3d, steps = 6) {
   return samples;
 }
 
+function getPlanetPathSamplesForPosition(baseX, baseY, startZ, steps = 10) {
+  const samples = [];
+  const targetZ = camera.position.z + 4;
+
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const z = THREE.MathUtils.lerp(startZ, targetZ, t);
+    samples.push(new THREE.Vector3(baseX, baseY, z));
+  }
+
+  return samples;
+}
+
 function pathsOverlap(samplesA, samplesB, worldBuffer, screenBuffer) {
-  const count = Math.min(samplesA.length, samplesB.length);
-
-  for (let i = 0; i < count; i += 1) {
+  for (let i = 0; i < samplesA.length; i += 1) {
     const sampleA = samplesA[i];
-    const sampleB = samplesB[i];
-
-    if (sampleA.distanceTo(sampleB) < worldBuffer) {
-      return true;
-    }
-
     const screenA = sampleA.clone().project(camera);
-    const screenB = sampleB.clone().project(camera);
-    const screenDx = (screenB.x - screenA.x) * window.innerWidth * 0.5;
-    const screenDy = (screenB.y - screenA.y) * window.innerHeight * 0.5;
-    if (Math.hypot(screenDx, screenDy) < screenBuffer) {
-      return true;
+
+    for (let j = 0; j < samplesB.length; j += 1) {
+      const sampleB = samplesB[j];
+
+      if (sampleA.distanceTo(sampleB) < worldBuffer) {
+        return true;
+      }
+
+      const screenB = sampleB.clone().project(camera);
+      const screenDx = (screenB.x - screenA.x) * window.innerWidth * 0.5;
+      const screenDy = (screenB.y - screenA.y) * window.innerHeight * 0.5;
+      if (Math.hypot(screenDx, screenDy) < screenBuffer) {
+        return true;
+      }
     }
   }
 
@@ -1188,7 +1204,22 @@ function spawnNavObject(object3d, scale) {
       const childLabelBox = getNavLabelBoxForPosition(child.position);
       return boxesOverlap(candidateLabelBox, childLabelBox);
     });
-    if (!overlaps) {
+    const candidatePlanetPath = getPlanetPathSamplesForPosition(x, y, z);
+    const overlapsAsteroidPath = [...backDecorGroup.children, ...frontDecorGroup.children].some((child) => {
+      const asteroidPath = getDecorAsteroidPathSamples(
+        child.userData.baseX ?? child.position.x,
+        child.userData.baseY ?? child.position.y,
+        child.position.z,
+        child.userData.trajectoryX ?? 0,
+        child.userData.trajectoryY ?? 0
+      );
+      const collisionBuffer =
+        (child.userData.baseScale || child.userData.scale || 0) +
+        scale +
+        8;
+      return pathsOverlap(candidatePlanetPath, asteroidPath, collisionBuffer, 18);
+    });
+    if (!overlaps && !overlapsAsteroidPath) {
       break;
     }
   } while (attempts < 1000);
@@ -1237,12 +1268,12 @@ function spawnDecorAsteroid(object3d, scale) {
   let attempts = 0;
 
   do {
-    z = -1850 - Math.random() * 550;
+    z = -1600 - Math.random() * 300;
     const candidate = randomDecorAsteroidPosition(z);
     x = candidate.x;
     y = candidate.y;
-    const trajectoryX = (Math.random() - 0.5) * 1.008;
-    const trajectoryY = Math.sign(y || (Math.random() - 0.5)) * (0.42 + Math.random() * 0.22);
+    const trajectoryX = Math.sign(x || 1) * (1.2 + Math.random() * 0.45);
+    const trajectoryY = Math.sign(y || (Math.random() - 0.5)) * (0.14 + Math.random() * 0.07);
     attempts += 1;
     if (attempts >= 100) {
       object3d.userData.trajectoryX = trajectoryX;
@@ -1270,8 +1301,8 @@ function spawnDecorAsteroid(object3d, scale) {
       const planetBuffer =
         (planet.userData.baseScale || planet.userData.scale * 9.125 || 40) +
         scale +
-        80;
-      return pathsOverlap(candidatePath, planetPath, planetBuffer, 180);
+        8;
+      return pathsOverlap(candidatePath, planetPath, planetBuffer, 18);
     });
 
     if (!overlapsDecor && !overlapsPlanet) {
@@ -1282,6 +1313,7 @@ function spawnDecorAsteroid(object3d, scale) {
   } while (attempts < 100);
 
   object3d.position.set(x, y, z);
+  object3d.userData.scale = scale;
   object3d.userData.baseScale = scale;
   object3d.userData.baseX = x;
   object3d.userData.baseY = y;
@@ -1542,7 +1574,7 @@ function animate() {
       60
     );
     const cruiseSpeed =
-      ((0.6654375 + pulse.value * 0.11090625 + thrust.value * 3.08953125) *
+      ((0.784 + pulse.value * 0.11090625 + thrust.value * 3.08953125) *
         (1.05 + depthFactor * 1.1) *
         accelerationFactor) *
       navTimeScale;
@@ -1587,7 +1619,7 @@ function animate() {
       screenY > 1.14;
 
     if (isOffscreen && !isInspectionTarget && !suppressRespawns) {
-      spawnDecorAsteroid(object3d, object3d.userData.baseScale);
+      spawnDecorAsteroid(object3d, randomDecorAsteroidScale());
       object3d.scale.setScalar(object3d.userData.baseScale);
       syncDecorLayer(object3d);
       object3d.userData.hovered = 0;
@@ -1837,7 +1869,7 @@ function animate() {
         attr[4] = head.y;
         attr[5] = head.z;
         shootingState.geometry.attributes.position.needsUpdate = true;
-        shootingState.material.opacity = Math.sin(progress * Math.PI) * 0.57;
+        shootingState.material.opacity = Math.sin(progress * Math.PI) * 1.14;
       }
     }
   });
