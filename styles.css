@@ -37,7 +37,7 @@ h1 {
 }
 
 body.warp-invert #scene-canvas {
-  filter: invert(1) hue-rotate(180deg) brightness(0.14) contrast(4.2);
+  filter: invert(1) hue-rotate(180deg) brightness(0.11) contrast(5.1);
 }
 
 body.warp-invert #planet-canvas,
@@ -198,6 +198,8 @@ body.warp-invert h1 {
   gap: 1rem;
   padding: 2rem 0;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .intro-kicker {

@@ -92,31 +92,6 @@ const driftOffset = new Float32Array(starCount);
 const driftRadius = new Float32Array(starCount);
 const depthLayer = new Float32Array(starCount);
 
-function createGlowTexture(stops) {
-  const size = 256;
-  const textureCanvas = document.createElement("canvas");
-  textureCanvas.width = size;
-  textureCanvas.height = size;
-  const textureContext = textureCanvas.getContext("2d");
-  const gradient = textureContext.createRadialGradient(
-    size / 2,
-    size / 2,
-    0,
-    size / 2,
-    size / 2,
-    size / 2
-  );
-
-  stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
-
-  textureContext.fillStyle = gradient;
-  textureContext.fillRect(0, 0, size, size);
-
-  const texture = new THREE.CanvasTexture(textureCanvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function createPlanetTexture(palette) {
   const size = 768;
   const textureCanvas = document.createElement("canvas");
@@ -287,11 +262,12 @@ function createMarsTexture() {
   const context = textureCanvas.getContext("2d");
   const imageData = context.createImageData(size, size);
 
-  const darkRust = new THREE.Color("#9d6038");
-  const midRust = new THREE.Color("#c27846");
-  const dustyOrange = new THREE.Color("#d98a4f");
-  const paleDust = new THREE.Color("#e4b487");
-  const shadowRock = new THREE.Color("#8a5938");
+  const darkRust = new THREE.Color("#8b5a34");
+  const midRust = new THREE.Color("#ae6d3f");
+  const dustyOrange = new THREE.Color("#bf7a45");
+  const paleDust = new THREE.Color("#d7a676");
+  const shadowRock = new THREE.Color("#765033");
+  const butterscotch = new THREE.Color("#c9984f");
 
   for (let y = 0; y < size; y += 1) {
     const v = y / size;
@@ -309,6 +285,11 @@ function createMarsTexture() {
 
       const dustBands = sampleFractalNoise(u * 8.5, v * 2.4, seed + 30);
       color.lerp(dustyOrange, Math.max(0, dustBands) * 0.1);
+
+      const splotches =
+        sampleFractalNoise(u * 3.1, v * 3.1, seed + 40) * 0.7 +
+        sampleFractalNoise(u * 7.4, v * 7.4, seed + 50) * 0.3;
+      color.lerp(butterscotch, smoothstep(0.26, 0.58, splotches) * 0.22);
 
       const index = (y * size + x) * 4;
       imageData.data[index] = Math.round(color.r * 255);
@@ -336,11 +317,13 @@ function createVenusTexture() {
   const context = textureCanvas.getContext("2d");
   const imageData = context.createImageData(size, size);
 
-  const cream = new THREE.Color("#efe0bd");
-  const paleYellow = new THREE.Color("#e4cf98");
-  const warmHaze = new THREE.Color("#d7b17b");
-  const lightOrange = new THREE.Color("#cfa273");
-  const softShadow = new THREE.Color("#b58f68");
+  const cream = new THREE.Color("#e3d4b3");
+  const paleYellow = new THREE.Color("#cfb562");
+  const warmHaze = new THREE.Color("#c19758");
+  const lightOrange = new THREE.Color("#b78656");
+  const softShadow = new THREE.Color("#96704d");
+  const mustard = new THREE.Color("#b8963d");
+  const beigeStreak = new THREE.Color("#d9c7a4");
 
   for (let y = 0; y < size; y += 1) {
     const v = y / size;
@@ -355,6 +338,8 @@ function createVenusTexture() {
       color.lerp(warmHaze, smoothstep(-0.05, 0.45, cloudValue) * 0.4);
       color.lerp(lightOrange, smoothstep(0.2, 0.65, cloudValue) * 0.22);
       color.lerp(softShadow, smoothstep(-0.7, -0.15, cloudValue) * 0.18);
+      color.lerp(mustard, smoothstep(0.08, 0.38, softBands) * 0.2);
+      color.lerp(beigeStreak, smoothstep(0.22, 0.62, fineClouds) * 0.16);
 
       const index = (y * size + x) * 4;
       imageData.data[index] = Math.round(color.r * 255);
@@ -436,10 +421,9 @@ function randomNavSpawnPosition(z) {
   const halfWidth = viewWidth * 0.5;
   const halfHeight = viewHeight * 0.5;
   const side = Math.random() < 0.5 ? -1 : 1;
+  const verticalSide = Math.random() < 0.5 ? -1 : 1;
   const x = side * THREE.MathUtils.lerp(halfWidth * 0.06, halfWidth * 0.2, Math.random());
-  const y = isCompactViewport()
-    ? THREE.MathUtils.lerp(halfHeight * 0.04, halfHeight * 0.28, Math.random())
-    : (Math.random() - 0.5) * halfHeight * 0.24;
+  const y = verticalSide * THREE.MathUtils.lerp(halfHeight * 0.04, halfHeight * 0.06, Math.random());
 
   return { x, y };
 }
@@ -451,10 +435,11 @@ function randomDecorAsteroidPosition(z) {
   const halfWidth = viewWidth * 0.5;
   const halfHeight = viewHeight * 0.5;
   const side = Math.random() < 0.5 ? -1 : 1;
+  const verticalSide = Math.random() < 0.5 ? -1 : 1;
 
   return {
-    x: side * THREE.MathUtils.lerp(halfWidth * 0.16, halfWidth * 0.34, Math.random()),
-    y: (Math.random() - 0.5) * halfHeight * 0.22,
+    x: side * THREE.MathUtils.lerp(halfWidth * 0.12, halfWidth * 0.22, Math.random()),
+    y: verticalSide * THREE.MathUtils.lerp(halfHeight * 0.005, halfHeight * 0.0125, Math.random()),
   };
 }
 
@@ -462,10 +447,23 @@ function isCompactViewport() {
   return window.innerWidth <= 1024;
 }
 
+function pickStarSpawnPosition() {
+  let x = (Math.random() - 0.5) * 980;
+  let y = (Math.random() - 0.5) * 760;
+
+  const centerEllipse = (x * x) / (150 * 150) + (y * y) / (110 * 110);
+  if (centerEllipse < 1) {
+    const push = THREE.MathUtils.lerp(1.06, 1.22, Math.random());
+    x *= push;
+    y *= push;
+  }
+
+  return { x, y };
+}
+
 for (let i = 0; i < starCount; i += 1) {
   const i3 = i * 3;
-  const x = (Math.random() - 0.5) * 900;
-  const y = (Math.random() - 0.5) * 560;
+  const { x, y } = pickStarSpawnPosition();
   positions[i3] = x;
   positions[i3 + 1] = y;
   positions[i3 + 2] = -Math.random() * 2000;
@@ -498,15 +496,16 @@ const starMaterial = new THREE.ShaderMaterial({
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       gl_Position = projectionMatrix * mvPosition;
       float pointScale = uViewportHeight * 0.23;
-      gl_PointSize = min((2.0 + aScale * 3.6) * (pointScale / -mvPosition.z), 9.6);
+      gl_PointSize = min((2.5 + aScale * 4.5) * (pointScale / -mvPosition.z), 12.0);
       float viewDistance = -mvPosition.z;
+      float nearBoost = 1.0 + smoothstep(900.0, 180.0, viewDistance) * 0.10;
       float twinkleBand = smoothstep(1250.0, 1850.0, viewDistance);
       float twinkleMask = step(
         0.825,
         fract(sin(dot(position.xy + vec2(aScale * 17.0, position.z * 0.01), vec2(12.9898, 78.233))) * 43758.5453)
       );
       float twinkle = sin(uTime * 0.42 + aScale * 12.0) * 0.08 * twinkleBand * twinkleMask;
-      vAlpha = (0.3 + aScale * 0.36 + twinkle) * 1.44;
+      vAlpha = (0.375 + aScale * 0.45 + twinkle) * 2.16 * nearBoost;
     }
   `,
   fragmentShader: `
@@ -561,12 +560,7 @@ objectScene.add(frontPlanetGroup);
 objectScene.add(frontDecorGroup);
 
 function createCelestialBody(definition) {
-  const geometry =
-    definition.baseGeometry === "octahedron"
-      ? new THREE.OctahedronGeometry(1, definition.detail)
-      : definition.baseGeometry === "dodecahedron"
-        ? new THREE.DodecahedronGeometry(1, definition.detail)
-        : new THREE.IcosahedronGeometry(1, definition.detail);
+  const geometry = new THREE.IcosahedronGeometry(1, definition.detail);
   const positionAttribute = geometry.attributes.position;
   const colorBuffer = new Float32Array(positionAttribute.count * 3);
   const color = new THREE.Color();
@@ -586,19 +580,13 @@ function createCelestialBody(definition) {
   const equatorBulgeStrength = definition.equatorBulgeStrength ?? 0;
   const polePinchStrength = definition.polePinchStrength ?? 0;
   const asymmetryStrength = definition.asymmetryStrength ?? 0;
-  const cleftStrength = definition.cleftStrength ?? 0;
-  const chunkStrength = definition.chunkStrength ?? 0;
-  const taperStrength = definition.taperStrength ?? 0;
-  const skewStrengthX = definition.skewStrengthX ?? 0;
-  const skewStrengthY = definition.skewStrengthY ?? 0;
-  const skewStrengthZ = definition.skewStrengthZ ?? 0;
 
   for (let i = 0; i < positionAttribute.count; i += 1) {
     vector.fromBufferAttribute(positionAttribute, i);
     vector.set(
-      vector.x * axisScale.x + vector.y * skewStrengthX + vector.z * skewStrengthZ * 0.35,
-      vector.y * axisScale.y + vector.x * skewStrengthY - vector.z * skewStrengthX * 0.18,
-      vector.z * axisScale.z + vector.x * skewStrengthZ
+      vector.x * axisScale.x,
+      vector.y * axisScale.y,
+      vector.z * axisScale.z
     );
     normal.copy(vector).normalize();
 
@@ -626,19 +614,6 @@ function createCelestialBody(definition) {
       const endBulge = smoothstep(0.18, 0.92, alongBody) * endBulgeStrength;
       const waistPinch = (1.0 - smoothstep(0.0, 0.45, alongBody)) * waistPinchStrength;
       profileWarp += endBulge - waistPinch;
-    } else if (shapeProfile === "shard") {
-      const nose = Math.max(0, normal.z) * taperStrength;
-      const tail = Math.max(0, -normal.z) * taperStrength * 0.55;
-      const ridgeLine = Math.abs(normal.x * 0.75 + normal.y * 0.25);
-      profileWarp += nose - tail + ridgeLine * chunkStrength - Math.abs(normal.y) * 0.08;
-    } else if (shapeProfile === "chunk") {
-      const angularChunk =
-        Math.sin((normal.x * 3.8 - normal.y * 2.1 + normal.z * 2.6) * definition.craterScale + definition.seed * 0.8);
-      const brokenFace =
-        Math.cos((normal.x * 1.6 + normal.y * 3.4 - normal.z * 1.8) * definition.craterScale * 0.7 - definition.seed);
-      profileWarp +=
-        Math.max(0, angularChunk) * chunkStrength -
-        Math.max(0, -brokenFace) * chunkStrength * 0.45;
     } else if (shapeProfile === "top") {
       const equatorBulge = (1.0 - Math.abs(normal.y)) * equatorBulgeStrength;
       const polePinch = Math.max(0, -normal.y) * polePinchStrength + Math.max(0, normal.y) * polePinchStrength * 0.4;
@@ -647,10 +622,6 @@ function createCelestialBody(definition) {
       profileWarp +=
         Math.sin((normal.x * 2.2 - normal.z * 1.6 + normal.y) * definition.craterScale * 0.35 + definition.seed) *
         0.06;
-    }
-    if (cleftStrength > 0) {
-      const cleft = 1.0 - Math.abs(normal.x * 0.82 - normal.z * 0.38);
-      profileWarp -= Math.max(0, cleft - 0.55) * cleftStrength;
     }
     const displacement =
       1 +
@@ -958,59 +929,73 @@ const decorAsteroidPalettes = [
     scratchColor: "#8d7868",
   },
   {
-    baseColor: "#87584b",
-    darkColor: "#311815",
-    lightColor: "#bc7f6a",
-    scratchColor: "#9f6d60",
-  },
-  {
-    baseColor: "#9a5e43",
-    darkColor: "#351d13",
-    lightColor: "#cf8764",
-    scratchColor: "#b06f53",
-  },
-  {
     baseColor: "#676258",
     darkColor: "#241f18",
     lightColor: "#9b927f",
     scratchColor: "#847b69",
   },
   {
-    baseColor: "#8d764f",
-    darkColor: "#302515",
-    lightColor: "#c2a879",
-    scratchColor: "#a58d67",
+    baseColor: "#a7a39b",
+    darkColor: "#58524b",
+    lightColor: "#d6d2ca",
+    scratchColor: "#c2beb5",
   },
   {
-    baseColor: "#5e4941",
-    darkColor: "#221512",
-    lightColor: "#916a5f",
-    scratchColor: "#78584e",
+    baseColor: "#8b4b30",
+    darkColor: "#3a1b12",
+    lightColor: "#bc7450",
+    scratchColor: "#a76144",
   },
   {
-    baseColor: "#7d6340",
-    darkColor: "#2b1f10",
-    lightColor: "#b18f62",
-    scratchColor: "#977751",
-  },
-  {
-    baseColor: "#496073",
-    darkColor: "#18222c",
-    lightColor: "#7291a8",
-    scratchColor: "#5e7b90",
-  },
-  {
-    baseColor: "#314556",
-    darkColor: "#121b24",
-    lightColor: "#59748a",
-    scratchColor: "#466075",
+    baseColor: "#70583d",
+    darkColor: "#352718",
+    lightColor: "#9b7c5a",
+    scratchColor: "#84694b",
   },
 ];
 
+function applyAsteroidPalette(mesh, palette) {
+  const positionAttribute = mesh.geometry.attributes.position;
+  const colorAttribute = mesh.geometry.attributes.color;
+  const color = new THREE.Color();
+  const baseColor = new THREE.Color(palette.baseColor);
+  const darkColor = new THREE.Color(palette.darkColor);
+  const lightColor = new THREE.Color(palette.lightColor);
+  const scratchColor = new THREE.Color(palette.scratchColor);
+  const normal = new THREE.Vector3();
+
+  for (let i = 0; i < positionAttribute.count; i += 1) {
+    normal.fromBufferAttribute(positionAttribute, i).normalize();
+    const grain =
+      Math.sin(normal.x * mesh.userData.noiseScaleA + mesh.userData.seed) *
+        Math.cos(normal.y * mesh.userData.noiseScaleB - mesh.userData.seed * 0.7) *
+        Math.sin(normal.z * mesh.userData.noiseScaleC + mesh.userData.seed * 1.3);
+    const crater =
+      Math.sin(
+        (normal.x + normal.y * 0.6 - normal.z * 0.4) * mesh.userData.craterScale +
+          mesh.userData.seed * 2.1
+      ) *
+        0.5 +
+      0.5;
+
+    color.copy(baseColor);
+    color.lerp(darkColor, 0.38 + Math.max(0, -normal.y) * 0.24);
+    color.lerp(lightColor, Math.max(0, normal.x) * 0.22 + Math.max(0, normal.z) * 0.14);
+    color.lerp(scratchColor, Math.max(0, grain) * 0.12 + crater * 0.08);
+
+    colorAttribute.setXYZ(i, color.r, color.g, color.b);
+  }
+
+  colorAttribute.needsUpdate = true;
+  mesh.userData.baseColor = palette.baseColor;
+  mesh.userData.darkColor = palette.darkColor;
+  mesh.userData.lightColor = palette.lightColor;
+  mesh.userData.scratchColor = palette.scratchColor;
+}
+
 function createRandomDecorAsteroidDefinition(index) {
-  const palette = decorAsteroidPalettes[index % decorAsteroidPalettes.length];
+  const palette = decorAsteroidPalettes[Math.floor(Math.random() * decorAsteroidPalettes.length)];
   const shapeMode = Math.random();
-  let baseGeometry;
   let axisScale;
   let shapeProfile;
   let endBulgeStrength = 0;
@@ -1018,77 +1003,40 @@ function createRandomDecorAsteroidDefinition(index) {
   let equatorBulgeStrength = 0;
   let polePinchStrength = 0;
   let asymmetryStrength = 0;
-  let cleftStrength = 0;
-  let chunkStrength = 0;
-  let taperStrength = 0;
-  let skewStrengthX = 0;
-  let skewStrengthY = 0;
-  let skewStrengthZ = 0;
 
-  if (shapeMode < 0.2) {
-    baseGeometry = "icosahedron";
+  if (shapeMode < 0.33) {
     shapeProfile = "potato";
     axisScale = {
-      x: 0.52 + Math.random() * 0.9,
-      y: 0.74 + Math.random() * 0.72,
-      z: 0.8 + Math.random() * 1.15,
+      x: 0.48 + Math.random() * 0.7,
+      y: 0.82 + Math.random() * 0.5,
+      z: 0.86 + Math.random() * 0.9,
     };
-    skewStrengthX = (Math.random() - 0.5) * 0.18;
-    skewStrengthZ = (Math.random() - 0.5) * 0.16;
-  } else if (shapeMode < 0.4) {
-    baseGeometry = "dodecahedron";
+  } else if (shapeMode < 0.66) {
     shapeProfile = "dogbone";
     axisScale = {
-      x: 0.62 + Math.random() * 0.55,
-      y: 0.76 + Math.random() * 0.38,
-      z: 1.08 + Math.random() * 1.2,
+      x: 0.58 + Math.random() * 0.55,
+      y: 0.82 + Math.random() * 0.34,
+      z: 0.95 + Math.random() * 0.95,
     };
-    endBulgeStrength = 0.24 + Math.random() * 0.26;
-    waistPinchStrength = 0.2 + Math.random() * 0.22;
-    cleftStrength = 0.06 + Math.random() * 0.1;
-  } else if (shapeMode < 0.6) {
-    baseGeometry = "octahedron";
-    shapeProfile = "shard";
-    axisScale = {
-      x: 0.54 + Math.random() * 0.58,
-      y: 0.76 + Math.random() * 0.56,
-      z: 1.08 + Math.random() * 1.35,
-    };
-    taperStrength = 0.16 + Math.random() * 0.22;
-    chunkStrength = 0.12 + Math.random() * 0.18;
-    skewStrengthY = (Math.random() - 0.5) * 0.22;
-    skewStrengthZ = (Math.random() - 0.5) * 0.18;
-  } else if (shapeMode < 0.8) {
-    baseGeometry = "dodecahedron";
-    shapeProfile = "chunk";
-    axisScale = {
-      x: 0.68 + Math.random() * 0.86,
-      y: 0.72 + Math.random() * 0.78,
-      z: 0.72 + Math.random() * 0.92,
-    };
-    chunkStrength = 0.18 + Math.random() * 0.24;
-    cleftStrength = 0.08 + Math.random() * 0.12;
-    skewStrengthX = (Math.random() - 0.5) * 0.2;
-    skewStrengthY = (Math.random() - 0.5) * 0.16;
+    endBulgeStrength = 0.18 + Math.random() * 0.22;
+    waistPinchStrength = 0.16 + Math.random() * 0.2;
   } else {
-    baseGeometry = "icosahedron";
     shapeProfile = "top";
     axisScale = {
-      x: 0.76 + Math.random() * 0.88,
-      y: 0.9 + Math.random() * 0.54,
-      z: 0.76 + Math.random() * 0.88,
+      x: 0.82 + Math.random() * 0.72,
+      y: 0.88 + Math.random() * 0.4,
+      z: 0.82 + Math.random() * 0.72,
     };
-    equatorBulgeStrength = 0.12 + Math.random() * 0.18;
+    equatorBulgeStrength = 0.08 + Math.random() * 0.12;
     polePinchStrength = 0.04 + Math.random() * 0.08;
-    asymmetryStrength = 0.06 + Math.random() * 0.12;
-    skewStrengthX = (Math.random() - 0.5) * 0.12;
+    asymmetryStrength = 0.03 + Math.random() * 0.06;
   }
 
   return {
     ...decorAsteroidDefinition,
     ...palette,
     detail: 2 + Math.floor(Math.random() * 3),
-    scale: 1.2 + Math.random() * 14.875,
+    scale: 0.5 + Math.random() * 30,
     bumpiness: 0.14 + Math.random() * 0.22,
     craterDepth: 0.08 + Math.random() * 0.18,
     noiseScaleA: 4.4 + Math.random() * 4.6,
@@ -1104,18 +1052,104 @@ function createRandomDecorAsteroidDefinition(index) {
     equatorBulgeStrength,
     polePinchStrength,
     asymmetryStrength,
-    cleftStrength,
-    chunkStrength,
-    taperStrength,
-    skewStrengthX,
-    skewStrengthY,
-    skewStrengthZ,
     seed: decorAsteroidDefinition.seed + index * 0.83 + Math.random() * 2.2,
     roughness: 0.9 + Math.random() * 0.08,
     flatShading: Math.random() < 0.35,
     axisScale,
-    baseGeometry,
   };
+}
+
+function getNavLabelBoxForPosition(position) {
+  const screen = position.clone().project(camera);
+  const x = (screen.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-screen.y * 0.5 + 0.5) * window.innerHeight;
+  const compactViewport = isCompactViewport();
+  const edgeProximity = THREE.MathUtils.clamp(
+    Math.max(Math.abs(screen.x), Math.abs(screen.y)),
+    0,
+    1
+  );
+  const lineScale = THREE.MathUtils.lerp(1.9, 1.0, edgeProximity);
+  const horizontalSign = screen.x >= 0 ? 1 : -1;
+  const verticalSign = screen.y >= 0 ? -1 : 1;
+  const baseOffsetX = compactViewport ? 83 : 108;
+  const baseOffsetY = compactViewport ? 59 : 77;
+  const labelOffsetX = horizontalSign * baseOffsetX * lineScale;
+  const labelOffsetY =
+    verticalSign *
+    baseOffsetY *
+    THREE.MathUtils.lerp(1.45, 1.0, edgeProximity);
+  const labelX = x + labelOffsetX;
+  const labelY = y + labelOffsetY;
+  const width = compactViewport ? 104 : 124;
+  const height = compactViewport ? 26 : 30;
+
+  return {
+    left: labelX - width * 0.5,
+    top: labelY - height * 0.5,
+    right: labelX + width * 0.5,
+    bottom: labelY + height * 0.5,
+  };
+}
+
+function boxesOverlap(a, b, padding = 16) {
+  return !(
+    a.right + padding < b.left ||
+    a.left - padding > b.right ||
+    a.bottom + padding < b.top ||
+    a.top - padding > b.bottom
+  );
+}
+
+function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajectoryY, steps = 6) {
+  const samples = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const z = THREE.MathUtils.lerp(startZ, camera.position.z + 16, t);
+    const x = baseX + (180 + t * 260) * trajectoryX;
+    const y = baseY + (190 + t * 240) * trajectoryY;
+    samples.push(new THREE.Vector3(x, y, z));
+  }
+  return samples;
+}
+
+function getPlanetPathSamples(object3d, steps = 6) {
+  const samples = [];
+  const startZ = object3d.position.z;
+  const targetZ = camera.position.z + 4;
+  const baseX = object3d.userData.baseX ?? object3d.position.x;
+  const baseY = object3d.userData.baseY ?? object3d.position.y;
+
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const z = THREE.MathUtils.lerp(startZ, targetZ, t);
+    samples.push(new THREE.Vector3(baseX, baseY, z));
+  }
+
+  return samples;
+}
+
+function pathsOverlap(samplesA, samplesB, worldBuffer, screenBuffer) {
+  const count = Math.min(samplesA.length, samplesB.length);
+
+  for (let i = 0; i < count; i += 1) {
+    const sampleA = samplesA[i];
+    const sampleB = samplesB[i];
+
+    if (sampleA.distanceTo(sampleB) < worldBuffer) {
+      return true;
+    }
+
+    const screenA = sampleA.clone().project(camera);
+    const screenB = sampleB.clone().project(camera);
+    const screenDx = (screenB.x - screenA.x) * window.innerWidth * 0.5;
+    const screenDy = (screenB.y - screenA.y) * window.innerHeight * 0.5;
+    if (Math.hypot(screenDx, screenDy) < screenBuffer) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function spawnNavObject(object3d, scale) {
@@ -1134,9 +1168,12 @@ function spawnNavObject(object3d, scale) {
     x = candidate.x;
     y = candidate.y;
     attempts += 1;
-  } while (
-    attempts < 18 &&
-    [...backPlanetGroup.children, ...frontPlanetGroup.children].some((child) => {
+    if (attempts >= 1000) {
+      break;
+    }
+    const candidatePosition = new THREE.Vector3(x, y, z);
+    const candidateLabelBox = getNavLabelBoxForPosition(candidatePosition);
+    const overlaps = [...backPlanetGroup.children, ...frontPlanetGroup.children].some((child) => {
       if (child === object3d) return false;
       const dx = child.position.x - x;
       const dy = child.position.y - y;
@@ -1144,10 +1181,17 @@ function spawnNavObject(object3d, scale) {
       const minSeparation =
         (child.userData.baseScale || child.userData.scale * 3.65 || 18) +
         scale +
-        90;
-      return Math.hypot(dx, dy) < minSeparation && Math.abs(dz) < 220;
-    })
-  );
+        80;
+      if (Math.hypot(dx, dy, dz) < minSeparation) {
+        return true;
+      }
+      const childLabelBox = getNavLabelBoxForPosition(child.position);
+      return boxesOverlap(candidateLabelBox, childLabelBox);
+    });
+    if (!overlaps) {
+      break;
+    }
+  } while (attempts < 1000);
 
   object3d.position.set(x, y, z);
   const sizeJitter =
@@ -1160,7 +1204,7 @@ function spawnNavObject(object3d, scale) {
   object3d.userData.driftOffset = Math.random() * Math.PI * 2;
   object3d.userData.driftRadius = 0.7 + Math.random() * 1.8;
   object3d.userData.depthLayer = 0.72 + Math.random() * 0.22;
-  object3d.userData.labelReadyAt = clock.elapsedTime + 1;
+  object3d.userData.labelReadyAt = clock.elapsedTime + 0.75;
   object3d.userData.hovered = 0;
 }
 
@@ -1193,31 +1237,61 @@ function spawnDecorAsteroid(object3d, scale) {
   let attempts = 0;
 
   do {
-    z = -1100 - Math.random() * 400;
+    z = -1850 - Math.random() * 550;
     const candidate = randomDecorAsteroidPosition(z);
     x = candidate.x;
     y = candidate.y;
+    const trajectoryX = (Math.random() - 0.5) * 1.008;
+    const trajectoryY = Math.sign(y || (Math.random() - 0.5)) * (0.42 + Math.random() * 0.22);
     attempts += 1;
-  } while (
-    attempts < 14 &&
-    [...backDecorGroup.children, ...frontDecorGroup.children].some((child) => {
+    if (attempts >= 100) {
+      object3d.userData.trajectoryX = trajectoryX;
+      object3d.userData.trajectoryY = trajectoryY;
+      break;
+    }
+
+    const overlapsDecor = [...backDecorGroup.children, ...frontDecorGroup.children].some((child) => {
       if (child === object3d) return false;
-      const dx = child.position.x - x;
-      const dy = child.position.y - y;
-      const dz = child.position.z - z;
-      return Math.hypot(dx, dy) < 120 && Math.abs(dz) < 180;
-    })
-  );
+      const candidatePath = getDecorAsteroidPathSamples(x, y, z, trajectoryX, trajectoryY);
+      const existingPath = getDecorAsteroidPathSamples(
+        child.userData.baseX ?? child.position.x,
+        child.userData.baseY ?? child.position.y,
+        child.position.z,
+        child.userData.trajectoryX ?? 0,
+        child.userData.trajectoryY ?? 0
+      );
+      const decorBuffer = (child.userData.baseScale || child.userData.scale || 0) + scale + 60;
+      return pathsOverlap(candidatePath, existingPath, decorBuffer, 120);
+    });
+
+    const overlapsPlanet = [...backPlanetGroup.children, ...frontPlanetGroup.children].some((planet) => {
+      const candidatePath = getDecorAsteroidPathSamples(x, y, z, trajectoryX, trajectoryY);
+      const planetPath = getPlanetPathSamples(planet);
+      const planetBuffer =
+        (planet.userData.baseScale || planet.userData.scale * 9.125 || 40) +
+        scale +
+        80;
+      return pathsOverlap(candidatePath, planetPath, planetBuffer, 180);
+    });
+
+    if (!overlapsDecor && !overlapsPlanet) {
+      object3d.userData.trajectoryX = trajectoryX;
+      object3d.userData.trajectoryY = trajectoryY;
+      break;
+    }
+  } while (attempts < 100);
 
   object3d.position.set(x, y, z);
   object3d.userData.baseScale = scale;
   object3d.userData.baseX = x;
   object3d.userData.baseY = y;
-  object3d.userData.trajectoryX = (Math.random() - 0.5) * 1.008;
-  object3d.userData.trajectoryY = (Math.random() - 0.5) * 0.714;
   object3d.userData.driftOffset = Math.random() * Math.PI * 2;
   object3d.userData.driftRadius = 0.35 + Math.random() * 1.2;
   object3d.userData.depthLayer = 0.72 + Math.random() * 0.22;
+  applyAsteroidPalette(
+    object3d,
+    decorAsteroidPalettes[Math.floor(Math.random() * decorAsteroidPalettes.length)]
+  );
 }
 
 const navObjects = navDefinitions.map((definition) => {
@@ -1231,7 +1305,7 @@ const navObjects = navDefinitions.map((definition) => {
   return body;
 });
 
-const decorAsteroids = Array.from({ length: 1 }, (_, index) => {
+const decorAsteroids = Array.from({ length: 2 }, (_, index) => {
   const body = createCelestialBody(createRandomDecorAsteroidDefinition(index));
   body.userData.bodyType = "asteroid";
   body.userData.decor = true;
@@ -1305,7 +1379,7 @@ if (navAnnotations) {
 }
 
 function addCelestialLights(targetScene) {
-  const ambientLight = new THREE.AmbientLight(0x5f72ff, 1.53);
+  const ambientLight = new THREE.AmbientLight(0x5f72ff, 4.0);
   targetScene.add(ambientLight);
 
   const pointLight = new THREE.PointLight(0x8aa0ff, 15.75, 1200, 2);
@@ -1328,11 +1402,10 @@ planetScene.children.forEach((child) => {
 
 function resetStar(index) {
   const i3 = index * 3;
-  const x = (Math.random() - 0.5) * 900;
-  const y = (Math.random() - 0.5) * 560;
+  const { x, y } = pickStarSpawnPosition();
   positions[i3] = x;
   positions[i3 + 1] = y;
-  positions[i3 + 2] = -2000;
+  positions[i3 + 2] = -2400;
   baseX[index] = x;
   baseY[index] = y;
   driftOffset[index] = Math.random() * Math.PI * 2;
@@ -1465,27 +1538,25 @@ function animate() {
     );
     const nearPass = Math.pow(proximity, 3.2);
     const accelerationFactor = Math.min(
-      1 + proximity * 10.8 + proximity * proximity * 28.8 + nearPass * 180.0,
+      1 + proximity * 10.8 + proximity * proximity * 28.8 + nearPass * 162.0,
       60
     );
     const cruiseSpeed =
-      ((0.53235 + pulse.value * 0.088725 + thrust.value * 2.471625) *
+      ((0.6654375 + pulse.value * 0.11090625 + thrust.value * 3.08953125) *
         (1.05 + depthFactor * 1.1) *
         accelerationFactor) *
       navTimeScale;
     const wave = elapsed * (0.05 + depthFactor * 0.08) + object3d.userData.driftOffset;
-    const parallaxX = -pointer.x * (5 + depthFactor * 12.8) * (1 + nearPass * 1.08);
-    const parallaxY = -pointer.y * (3.4 + depthFactor * 8.9) * (1 + nearPass * 0.82);
+    const parallaxX = -pointer.x * (5 + depthFactor * 12.8);
+    const parallaxY = -pointer.y * (3.4 + depthFactor * 8.9);
     const organicX =
       Math.sin(wave) *
       object3d.userData.driftRadius *
-      (0.28 + depthFactor * 0.52) *
-      (1 + nearPass * 1.25);
+      (0.2 + depthFactor * 0.34);
     const organicY =
       Math.cos(wave * 0.82) *
       object3d.userData.driftRadius *
-      (0.22 + depthFactor * 0.4) *
-      (1 + nearPass * 0.9);
+      (0.16 + depthFactor * 0.28);
 
     const isInspectionTarget = hoverCinematic.object === object3d && hoverCinematic.amount > 0.08;
 
@@ -1495,12 +1566,12 @@ function animate() {
         object3d.userData.baseX +
         parallaxX +
         organicX +
-        proximity * 2300 * object3d.userData.trajectoryX;
+        (180 + proximity * 260) * object3d.userData.trajectoryX;
       object3d.position.y =
         object3d.userData.baseY +
         parallaxY +
         organicY +
-        proximity * 1640 * object3d.userData.trajectoryY;
+        (190 + proximity * 240) * object3d.userData.trajectoryY;
     }
 
     syncDecorLayer(object3d);
@@ -1551,7 +1622,7 @@ function animate() {
       1
     );
     const bodySpeedFactor = 2.232;
-    const accelerationFactor = 1 + proximity * 0.27 + proximity * proximity * 0.1575;
+    const accelerationFactor = 1 + proximity * 0.108 + proximity * proximity * 0.063;
     const cruiseSpeed =
       ((0.42 + pulse.value * 0.07 + thrust.value * 2.15) *
         (0.98 + depthFactor * 1.18) *
@@ -1591,7 +1662,7 @@ function animate() {
       object3d.scale.setScalar(object3d.userData.baseScale);
       syncPlanetLayer(object3d);
       object3d.userData.labelProgress = 0;
-      object3d.userData.labelReadyAt = elapsed + 1;
+      object3d.userData.labelReadyAt = elapsed + 0.75;
       object3d.material.opacity = 0;
       const annotation = navAnnotationMap.get(object3d.userData.id);
       if (annotation) {
@@ -1605,6 +1676,7 @@ function animate() {
       object3d.userData.bodyType === "planet"
         ? 1 - proximity * 0.42 - proximity * proximity * 0.26
         : 1;
+    object3d.material.color.setScalar(1);
     const scale =
       object3d.userData.baseScale *
       apparentDistanceScale *
