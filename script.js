@@ -436,8 +436,8 @@ function randomDecorAsteroidPosition(z) {
   const halfHeight = viewHeight * 0.5;
 
   return {
-    x: (Math.random() - 0.5) * halfWidth * 0.08,
-    y: (Math.random() - 0.5) * halfHeight * 0.0025,
+    x: (Math.random() - 0.5) * halfWidth * 0.04,
+    y: (Math.random() - 0.5) * halfHeight * 0.005,
   };
 }
 
@@ -909,28 +909,10 @@ const decorAsteroidPalettes = [
     scratchColor: "#515b68",
   },
   {
-    baseColor: "#565d67",
-    darkColor: "#1b2028",
-    lightColor: "#7f8894",
-    scratchColor: "#69727e",
-  },
-  {
-    baseColor: "#747b84",
-    darkColor: "#232932",
-    lightColor: "#a2a9b1",
-    scratchColor: "#8b919a",
-  },
-  {
     baseColor: "#7a6656",
     darkColor: "#2b2119",
     lightColor: "#ac9580",
     scratchColor: "#8d7868",
-  },
-  {
-    baseColor: "#676258",
-    darkColor: "#241f18",
-    lightColor: "#9b927f",
-    scratchColor: "#847b69",
   },
   {
     baseColor: "#a7a39b",
@@ -1113,7 +1095,7 @@ function getDecorAsteroidPathSamples(baseX, baseY, startZ, trajectoryX, trajecto
     const z = THREE.MathUtils.lerp(startZ, camera.position.z + 16, t);
     const distanceToCamera = Math.max(1, camera.position.z - z);
     const proximity = THREE.MathUtils.clamp(
-      1 - (distanceToCamera - 160) / 1200,
+      1 - (distanceToCamera - 160) / 3000,
       0,
       1
     );
@@ -1266,7 +1248,7 @@ function syncPlanetLayer(object3d) {
 }
 
 function syncDecorLayer(object3d) {
-  const threshold = isCompactViewport() ? -760 : -1200;
+  const threshold = isCompactViewport() ? -980 : -1450;
   if (object3d.position.z < threshold) {
     if (object3d.parent !== backDecorGroup) {
       backDecorGroup.add(object3d);
@@ -1283,11 +1265,11 @@ function spawnDecorAsteroid(object3d, scale) {
   let attempts = 0;
 
   do {
-    z = -1600 - Math.random() * 300;
+    z = -2600 - Math.random() * 600;
     const candidate = randomDecorAsteroidPosition(z);
     x = candidate.x;
     y = candidate.y;
-    const trajectoryX = Math.sign(x || 1) * (1.2 + Math.random() * 0.45);
+    const trajectoryX = Math.sign(x || 1) * (1.5 + Math.random() * 1.50);
     const trajectoryY = Math.sign(y || (Math.random() - 0.5)) * (0.14 + Math.random() * 0.07);
     attempts += 1;
     if (attempts >= 100) {
@@ -1335,6 +1317,7 @@ function spawnDecorAsteroid(object3d, scale) {
   object3d.userData.driftOffset = Math.random() * Math.PI * 2;
   object3d.userData.driftRadius = 0.35 + Math.random() * 1.2;
   object3d.userData.depthLayer = 0.72 + Math.random() * 0.22;
+  object3d.userData.respawnAt = null;
   applyAsteroidPalette(
     object3d,
     decorAsteroidPalettes[Math.floor(Math.random() * decorAsteroidPalettes.length)]
@@ -1583,13 +1566,17 @@ function animate() {
       0,
       1
     );
+    const accelerationProximity = THREE.MathUtils.lerp(0.42, 1, proximity);
     const nearPass = Math.pow(proximity, 3.2);
     const accelerationFactor = Math.min(
-      1 + proximity * 10.8 + proximity * proximity * 28.8 + nearPass * 162.0,
-      60
+      2 +
+        accelerationProximity * 4 +
+        accelerationProximity * accelerationProximity * 10 +
+        nearPass * 40,
+      90
     );
     const cruiseSpeed =
-      ((0.784 + pulse.value * 0.11090625 + thrust.value * 3.08953125) *
+      ((1.5 + pulse.value * 0.11 + thrust.value * 3.1) *
         (1.05 + depthFactor * 1.1) *
         accelerationFactor) *
       navTimeScale;
@@ -1613,12 +1600,12 @@ function animate() {
         object3d.userData.baseX +
         parallaxX +
         organicX +
-        (180 + proximity * 260) * object3d.userData.trajectoryX;
+        (180 + proximity * 350) * object3d.userData.trajectoryX;
       object3d.position.y =
         object3d.userData.baseY +
         parallaxY +
         organicY +
-        (190 + proximity * 240) * object3d.userData.trajectoryY;
+        (750 + proximity * 1500) * object3d.userData.trajectoryY;
     }
 
     syncDecorLayer(object3d);
@@ -1634,11 +1621,19 @@ function animate() {
       screenY > 1.14;
 
     if (isOffscreen && !isInspectionTarget && !suppressRespawns) {
-      spawnDecorAsteroid(object3d, randomDecorAsteroidScale());
-      object3d.scale.setScalar(object3d.userData.baseScale);
-      syncDecorLayer(object3d);
-      object3d.userData.hovered = 0;
-      object3d.material.opacity = 0;
+      if (object3d.userData.respawnAt == null) {
+        object3d.userData.respawnAt = elapsed + 1 + Math.random() * 4;
+        object3d.material.opacity = 0;
+        return;
+      }
+
+      if (elapsed >= object3d.userData.respawnAt) {
+        spawnDecorAsteroid(object3d, randomDecorAsteroidScale());
+        object3d.scale.setScalar(object3d.userData.baseScale);
+        syncDecorLayer(object3d);
+        object3d.userData.hovered = 0;
+        object3d.material.opacity = 0;
+      }
       return;
     }
 
@@ -1725,7 +1720,8 @@ function animate() {
       object3d.userData.bodyType === "planet"
         ? 1 - proximity * 0.42 - proximity * proximity * 0.26
         : 1;
-    object3d.material.color.setScalar(1);
+    const farDepthBrightnessBoost = Math.pow(1 - proximity, 4) * 1.1;
+      object3d.material.color.setScalar(1 + Math.pow(farDepthBrightnessBoost, 4));
     const scale =
       object3d.userData.baseScale *
       apparentDistanceScale *
@@ -1865,7 +1861,7 @@ function animate() {
       attr[4] = shootingState.from.y;
       attr[5] = shootingState.from.z;
       shootingState.geometry.attributes.position.needsUpdate = true;
-      shootingState.nextAt = elapsed + 4.34 + Math.random() * 6.5;
+      shootingState.nextAt = elapsed + 2.5 + Math.random() * 4.5;
     }
 
     if (shootingState.active) {
