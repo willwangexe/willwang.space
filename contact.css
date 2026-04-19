@@ -1,0 +1,150 @@
+:root {
+  --contact-bg: #05070d;
+  --contact-panel: rgba(7, 10, 18, 0.72);
+  --contact-panel-border: rgba(255, 255, 255, 0.14);
+  --contact-text: #f2eee4;
+  --contact-muted: rgba(242, 238, 228, 0.72);
+  --contact-accent: #f7ca6a;
+  --ascii-glow: rgba(255, 255, 255, 0.35);
+  --ascii-font-size: 0.26rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body.contact-page {
+  background: #000000;
+  color: var(--contact-text);
+  font-family: "Inter", sans-serif;
+  overflow: hidden;
+}
+
+.contact-shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.contact-wordmark {
+  position: fixed;
+  left: clamp(7rem, 18vw, 14rem);
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.95);
+  width: min(30rem, calc(50vw - 12rem));
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(1.5rem, 1.8vw, 2.5rem);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  user-select: none;
+}
+
+.contact-wordmark-text {
+  white-space: normal;
+}
+
+.contact-wordmark-email {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  text-decoration-thickness: 0.08em;
+}
+
+.contact-wordmark-cursor {
+  display: inline-block;
+  width: 0.08em;
+  min-width: 2px;
+  height: 1.02em;
+  margin-left: 0.08em;
+  vertical-align: -0.12em;
+  background: #ffffff;
+  animation: contact-cursor-blink 1s steps(1, end) infinite;
+}
+
+@keyframes contact-cursor-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+
+  49%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.ascii-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.ascii-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  z-index: 1;
+}
+
+.ascii-portrait {
+  position: absolute;
+  left: 50vw;
+  top: 50%;
+  margin: 0;
+  white-space: pre;
+  font-family: "Courier New", monospace;
+  font-size: var(--ascii-font-size);
+  line-height: 1;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.96);
+  transform: translateY(-50%);
+  opacity: 1;
+  user-select: none;
+  max-width: none;
+  max-height: none;
+}
+
+@media (max-width: 1100px) {
+  body.contact-page {
+    overflow: hidden;
+  }
+
+  .contact-shell {
+    min-height: 100dvh;
+  }
+
+  .contact-wordmark {
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    top: 1rem;
+    transform: none;
+    width: auto;
+    font-size: clamp(1.75rem, 4.2vw, 2.1rem);
+    line-height: 1.5;
+  }
+
+  .ascii-stage {
+    position: absolute;
+    inset: 7.5rem 0 0 0;
+  }
+
+  .ascii-portrait {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    opacity: 0.94;
+  }
+}

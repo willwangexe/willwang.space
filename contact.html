@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact | William Wang</title>
+  <meta
+    name="description"
+    content="Contact William Wang through a dedicated page built around a looping ASCII animation background."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Special+Elite&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="contact.css">
+</head>
+<body class="contact-page">
+  <div class="contact-shell">
+    <div class="contact-wordmark" aria-label="Hi there! Send a pithy thought or two, and I'll send one back to you: wykwang@gmail.com">
+      <span class="contact-wordmark-text" id="contact-wordmark-text"></span>
+      <span class="contact-wordmark-cursor" aria-hidden="true"></span>
+    </div>
+    <div class="ascii-stage" aria-hidden="true">
+      <pre class="ascii-portrait" id="ascii-portrait"></pre>
+    </div>
+  </div>
+
+  <script src="contact-animation.js"></script>
+  <script>
+    window.contactAnimationFrames = frames;
+  </script>
+  <script type="module" src="contact.js"></script>
+</body>
+</html>

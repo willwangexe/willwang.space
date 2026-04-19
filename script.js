@@ -4,11 +4,14 @@ const backgroundCanvas = document.getElementById("scene-canvas");
 const planetCanvas = document.getElementById("planet-canvas");
 const objectCanvas = document.getElementById("object-canvas");
 const navAnnotations = document.getElementById("nav-annotations");
+const mobileNav = document.getElementById("mobile-nav");
 const overlay = document.getElementById("overlay");
+const overlayPanel = document.getElementById("overlay-panel");
 const overlayClose = document.getElementById("overlay-close");
 const overlayTitle = document.getElementById("overlay-title");
 const overlayBody = document.getElementById("overlay-body");
 const bodyElement = document.body;
+const interactionMediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
 
 const backgroundRenderer = new THREE.WebGLRenderer({
   canvas: backgroundCanvas,
@@ -49,6 +52,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   2200
 );
+const BASE_CAMERA_Z = 6;
 camera.position.z = 6;
 
 const mouse = { x: 0, y: 0 };
@@ -317,13 +321,13 @@ function createVenusTexture() {
   const context = textureCanvas.getContext("2d");
   const imageData = context.createImageData(size, size);
 
-  const cream = new THREE.Color("#e3d4b3");
-  const paleYellow = new THREE.Color("#cfb562");
-  const warmHaze = new THREE.Color("#c19758");
-  const lightOrange = new THREE.Color("#b78656");
-  const softShadow = new THREE.Color("#96704d");
-  const mustard = new THREE.Color("#b8963d");
-  const beigeStreak = new THREE.Color("#d9c7a4");
+  const cream = new THREE.Color("#b59a63");
+  const paleYellow = new THREE.Color("#b49444");
+  const warmHaze = new THREE.Color("#a57a40");
+  const lightOrange = new THREE.Color("#9c6f3f");
+  const softShadow = new THREE.Color("#6f5234");
+  const mustard = new THREE.Color("#9a7a25");
+  const beigeStreak = new THREE.Color("#8a6b44");
 
   for (let y = 0; y < size; y += 1) {
     const v = y / size;
@@ -445,13 +449,17 @@ function isCompactViewport() {
   return window.innerWidth <= 1024;
 }
 
+function usesTouchLayout() {
+  return window.innerWidth <= 768 || !interactionMediaQuery.matches;
+}
+
 function pickStarSpawnPosition() {
   let x = (Math.random() - 0.5) * 980;
   let y = (Math.random() - 0.5) * 760;
 
   const centerEllipse = (x * x) / (150 * 150) + (y * y) / (110 * 110);
   if (centerEllipse < 1) {
-    const push = THREE.MathUtils.lerp(1.06, 1.22, Math.random());
+    const push = THREE.MathUtils.lerp(1.18, 1.42, Math.random());
     x *= push;
     y *= push;
   }
@@ -691,7 +699,7 @@ const planetPalettes = [
   },
   {
     name: "mars",
-    base: "#70423a",
+    base: "#e77d11",
     bandSoft: "#996255",
     bands: ["#8d5346", "#b37a62", "#6a3b31", "#c79272"],
     spots: [
@@ -703,13 +711,13 @@ const planetPalettes = [
   },
   {
     name: "venus",
-    base: "#8f7860",
-    bandSoft: "#c7ae8c",
-    bands: ["#d1bc95", "#9d8568", "#e4cfaa", "#7f6951"],
+    base: "#f8e2b0",
+    bandSoft: "#ad9458",
+    bands: ["#d3a567", "#8a764b", "#fff1d5", "#6f5d38"],
     spots: [
-      { x: 0.34, y: 0.42, radius: 0.18, color: "#ead8b6" },
-      { x: 0.67, y: 0.3, radius: 0.12, color: "#78624e" },
-      { x: 0.58, y: 0.66, radius: 0.1, color: "#d7c09a" },
+      { x: 0.34, y: 0.42, radius: 0.18, color: "#fff1d5" },
+      { x: 0.67, y: 0.3, radius: 0.12, color: "#68563a" },
+      { x: 0.58, y: 0.66, radius: 0.1, color: "#ad8d54" },
     ],
     noise: 14,
   },
@@ -737,9 +745,7 @@ function createPlanet(type) {
   const palette = getPlanetPalette(type);
   const geometry = new THREE.SphereGeometry(1, 48, 48);
   const materialSettings =
-      type === "venus"
-        ? { roughness: 0.82, emissive: new THREE.Color("#f3dfba"), emissiveIntensity: 0.06 }
-        : type === "neptune"
+      type === "neptune"
           ? { roughness: 0.86, emissive: new THREE.Color("#234f9a"), emissiveIntensity: 0.03 }
       : { roughness: 0.92, emissive: new THREE.Color(0x000000), emissiveIntensity: 0 };
   const material = new THREE.MeshStandardMaterial({
@@ -772,6 +778,9 @@ function createPlanetBody(definition) {
     bodyType: "planet",
     planetType,
     hovered: 0,
+    hoverSpinRotation: 0,
+    hoverSpinVelocity: 0,
+    hoverSpinWobble: 0,
     screen: new THREE.Vector3(),
     labelProgress: 0,
     labelReadyAt: 0,
@@ -1348,6 +1357,10 @@ const decorAsteroids = Array.from({ length: 2 }, (_, index) => {
 });
 
 function openNavTarget(target) {
+  if (target.userData.id === "contact") {
+    window.location.assign("./contact.html");
+    return;
+  }
   focusState.object = target;
   focusState.active = true;
   focusState.targetAmount = 1;
@@ -1356,7 +1369,28 @@ function openNavTarget(target) {
     overlayBody.textContent = target.userData.body;
     overlay.classList.add("is-visible");
     overlay.setAttribute("aria-hidden", "false");
+    bodyElement.classList.add("overlay-open");
+    mobileNav?.querySelectorAll(".mobile-nav-button.is-active").forEach((button) => {
+      button.classList.remove("is-active");
+    });
+    mobileNav?.querySelector(`[data-nav-id="${target.userData.id}"]`)?.classList.add("is-active");
+    requestAnimationFrame(() => {
+      overlayPanel?.focus();
+    });
   }
+}
+
+function closeOverlay() {
+  if (!overlay) return;
+  overlay.classList.remove("is-visible");
+  overlay.setAttribute("aria-hidden", "true");
+  bodyElement.classList.remove("overlay-open");
+  mobileNav?.querySelectorAll(".mobile-nav-button.is-active").forEach((button) => {
+    button.classList.remove("is-active");
+  });
+  focusState.targetAmount = 0;
+  focusState.active = false;
+  focusState.object = null;
 }
 
 const navAnnotationMap = new Map();
@@ -1408,15 +1442,39 @@ if (navAnnotations) {
   });
 }
 
+if (mobileNav) {
+  navDefinitions.forEach((definition) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mobile-nav-button";
+    button.dataset.navId = definition.id;
+    button.textContent = definition.title;
+    button.addEventListener("click", () => {
+      pulse.value = 1;
+      thrust.target = 0;
+      warp.target = 0;
+      const target = navObjects.find((object3d) => object3d.userData.id === definition.id);
+      if (target) {
+        mobileNav.querySelectorAll(".mobile-nav-button.is-active").forEach((activeButton) => {
+          activeButton.classList.remove("is-active");
+        });
+        button.classList.add("is-active");
+        openNavTarget(target);
+      }
+    });
+    mobileNav.appendChild(button);
+  });
+}
+
 function addCelestialLights(targetScene) {
-  const ambientLight = new THREE.AmbientLight(0x5f72ff, 4.0);
+  const ambientLight = new THREE.AmbientLight(0x5f72ff, 2.9);
   targetScene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x8aa0ff, 15.75, 1200, 2);
+  const pointLight = new THREE.PointLight(0x8aa0ff, 11.25, 1200, 2);
   pointLight.position.set(-140, 120, -500);
   targetScene.add(pointLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xf6f3ec, 8.55);
+  const directionalLight = new THREE.DirectionalLight(0xf6f3ec, 6.1);
   directionalLight.position.set(180, 110, 120);
   targetScene.add(directionalLight);
 }
@@ -1435,7 +1493,7 @@ function resetStar(index) {
   const { x, y } = pickStarSpawnPosition();
   positions[i3] = x;
   positions[i3 + 1] = y;
-  positions[i3 + 2] = -2400;
+  positions[i3 + 2] = -Math.random() * 2000;
   baseX[index] = x;
   baseY[index] = y;
   driftOffset[index] = Math.random() * Math.PI * 2;
@@ -1460,8 +1518,11 @@ function animate() {
 
   starMaterial.uniforms.uTime.value = elapsed;
 
-  const pointerRecentlyMoved = pointerState.insideWindow && performance.now() - pointerState.lastMoveAt < 180;
+  const canHover = interactionMediaQuery.matches;
+  const pointerRecentlyMoved =
+    canHover && pointerState.insideWindow && performance.now() - pointerState.lastMoveAt < 180;
   const hoveredObjectStillUnderPointer =
+    canHover &&
     hoverCinematic.object &&
     pointerState.insideWindow &&
     (() => {
@@ -1538,7 +1599,7 @@ function animate() {
 
   camera.position.x += ((-pointer.x * 3.5) - camera.position.x) * 0.02;
   camera.position.y += ((pointer.y * 2.25) - camera.position.y) * 0.02;
-  camera.position.z += ((6 - effectiveHoverAmount * 1.25) - camera.position.z) * 0.06;
+  camera.position.z += ((BASE_CAMERA_Z - effectiveHoverAmount * 1.25) - camera.position.z) * 0.06;
   focusState.amount += (focusState.targetAmount - focusState.amount) * 0.055;
   const clickFocusObject = focusState.object;
   const clickFocusAmount = focusState.amount;
@@ -1576,7 +1637,7 @@ function animate() {
       90
     );
     const cruiseSpeed =
-      ((1.5 + pulse.value * 0.11 + thrust.value * 3.1) *
+      ((1.70 + pulse.value * 0.11 + thrust.value * 3.1) *
         (1.05 + depthFactor * 1.1) *
         accelerationFactor) *
       navTimeScale;
@@ -1600,12 +1661,12 @@ function animate() {
         object3d.userData.baseX +
         parallaxX +
         organicX +
-        (180 + proximity * 350) * object3d.userData.trajectoryX;
+        (180 + proximity * 240) * object3d.userData.trajectoryX;
       object3d.position.y =
         object3d.userData.baseY +
         parallaxY +
         organicY +
-        (750 + proximity * 1500) * object3d.userData.trajectoryY;
+        (750 + proximity * 1300) * object3d.userData.trajectoryY;
     }
 
     syncDecorLayer(object3d);
@@ -1646,6 +1707,7 @@ function animate() {
       object3d.userData.baseRotationY + elapsed * object3d.userData.spinSpeedY;
     object3d.rotation.z =
       Math.sin(elapsed * (object3d.userData.spinSpeedX * 0.7) + object3d.userData.driftOffset) * 0.05;
+    object3d.material.color.setScalar(1.2);
     const targetOpacity = 0.84 + object3d.userData.hovered * 0.12;
     object3d.material.opacity += (targetOpacity - object3d.material.opacity) * 0.08;
   });
@@ -1660,6 +1722,12 @@ function animate() {
     const distanceToCamera = Math.max(1, camera.position.z - object3d.position.z);
     const proximity = THREE.MathUtils.clamp(
       1 - (distanceToCamera - 40) / 520,
+      0,
+      1
+    );
+    const brightnessDistanceToCamera = Math.max(1, BASE_CAMERA_Z - object3d.position.z);
+    const brightnessProximity = THREE.MathUtils.clamp(
+      1 - (brightnessDistanceToCamera - 200) / 1600,
       0,
       1
     );
@@ -1720,8 +1788,11 @@ function animate() {
       object3d.userData.bodyType === "planet"
         ? 1 - proximity * 0.42 - proximity * proximity * 0.26
         : 1;
-    const farDepthBrightnessBoost = Math.pow(1 - proximity, 4) * 1.1;
-      object3d.material.color.setScalar(1 + Math.pow(farDepthBrightnessBoost, 4));
+    const baseBrightness = THREE.MathUtils.lerp(15.0, 3.0, brightnessProximity);
+    const hoverBrightnessBoost =
+      object3d.userData.hovered *
+      THREE.MathUtils.lerp(30.0, 0.5, brightnessProximity);
+    object3d.material.color.setScalar(baseBrightness + hoverBrightnessBoost);
     const scale =
       object3d.userData.baseScale *
       apparentDistanceScale *
@@ -1730,12 +1801,21 @@ function animate() {
     object3d.rotation.x =
       object3d.userData.baseRotationX +
       Math.sin(elapsed * object3d.userData.spinSpeedX + object3d.userData.driftOffset) * 0.18;
+    const hoverSpinTarget = object3d.userData.hovered * 0.055;
+    object3d.userData.hoverSpinVelocity +=
+      (hoverSpinTarget - object3d.userData.hoverSpinVelocity) * 0.08;
+    object3d.userData.hoverSpinRotation += object3d.userData.hoverSpinVelocity * delta * 60;
+    object3d.userData.hoverSpinWobble += object3d.userData.hoverSpinVelocity * 0.18 * delta * 60;
     object3d.rotation.y =
       object3d.userData.baseRotationY +
       elapsed * object3d.userData.spinSpeedY +
-      object3d.userData.hovered * 0.06;
+      object3d.userData.hoverSpinRotation;
     object3d.rotation.z =
-      Math.sin(elapsed * (object3d.userData.spinSpeedX * 0.7) + object3d.userData.driftOffset) * 0.08;
+      Math.sin(
+        elapsed * (object3d.userData.spinSpeedX * 0.7) +
+        object3d.userData.hoverSpinWobble +
+        object3d.userData.driftOffset
+      ) * 0.08;
   });
 
   navObjects.forEach((object3d) => {
@@ -1750,7 +1830,7 @@ function animate() {
     if (elapsed < object3d.userData.labelReadyAt) {
       annotation.group.style.opacity = "0";
       annotation.line.style.opacity = "0";
-      object3d.material.opacity = 0;
+      object3d.material.opacity = 1;
       return;
     }
     const screen = object3d.userData.screen;
@@ -1778,7 +1858,7 @@ function animate() {
     const shouldShowLabel = visible && object3d.position.z < -30;
     object3d.userData.labelProgress += ((shouldShowLabel ? 1 : 0) - object3d.userData.labelProgress) * 0.12;
     const opacity = object3d.userData.labelProgress * (0.58 + object3d.userData.hovered * 0.42);
-    object3d.material.opacity = object3d.userData.labelProgress * (0.88 + object3d.userData.hovered * 0.12);
+    object3d.material.opacity = 1;
 
     const width = compactViewport ? 104 : 124;
     const height = compactViewport ? 26 : 30;
@@ -1929,8 +2009,8 @@ window.addEventListener("pointerdown", (event) => {
   }
   updatePointerPosition(event.clientX, event.clientY);
   pulse.value = 1;
-  thrust.target = 1;
-  warp.target = 1;
+  thrust.target = usesTouchLayout() ? 0 : 1;
+  warp.target = usesTouchLayout() ? 0 : 1;
   raycaster.setFromCamera(pointerNdc, camera);
   const hits = raycaster.intersectObjects(navObjects);
   if (hits.length) {
@@ -1976,13 +2056,23 @@ document.addEventListener("visibilitychange", () => {
 
 if (overlayClose && overlay) {
   overlayClose.addEventListener("click", () => {
-    overlay.classList.remove("is-visible");
-    overlay.setAttribute("aria-hidden", "true");
-    focusState.targetAmount = 0;
-    focusState.active = false;
-    focusState.object = null;
+    closeOverlay();
   });
 }
+
+if (overlay) {
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      closeOverlay();
+    }
+  });
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && overlay?.classList.contains("is-visible")) {
+    closeOverlay();
+  }
+});
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;

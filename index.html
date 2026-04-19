@@ -26,11 +26,20 @@
     <p class="intro-copy">
       and welcome to my <em>space.</em>
     </p>
+    <p class="intro-helper">On mobile, use the quick links below to jump between sections.</p>
   </main>
   <svg class="nav-annotations" id="nav-annotations" aria-hidden="true"></svg>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Quick links"></nav>
   <div class="overlay" id="overlay" aria-hidden="true">
-    <div class="overlay-panel">
-      <button class="overlay-close" id="overlay-close" aria-label="Close panel">Close</button>
+    <div
+      class="overlay-panel"
+      id="overlay-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="overlay-title"
+      tabindex="-1"
+    >
+      <button type="button" class="overlay-close" id="overlay-close" aria-label="Close panel">Close</button>
       <p class="overlay-kicker">Drifting Signal</p>
       <h2 id="overlay-title">Projects</h2>
       <p id="overlay-body">
