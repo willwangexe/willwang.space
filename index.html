@@ -17,6 +17,9 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="page-loader" id="page-loader" aria-hidden="true">
+    <pre class="page-loader-ascii" id="page-loader-ascii">[    ]</pre>
+  </div>
   <canvas id="scene-canvas" aria-hidden="true"></canvas>
   <canvas id="planet-canvas" aria-hidden="true"></canvas>
   <canvas id="object-canvas" aria-hidden="true"></canvas>
@@ -47,6 +50,10 @@
       </p>
     </div>
   </div>
+  <script src="loader-animation.js"></script>
+  <script>
+    window.initialLoaderFrames = frames;
+  </script>
   <script type="module" src="script.js"></script>
 </body>
 </html>

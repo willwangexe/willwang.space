@@ -10,8 +10,48 @@ const overlayPanel = document.getElementById("overlay-panel");
 const overlayClose = document.getElementById("overlay-close");
 const overlayTitle = document.getElementById("overlay-title");
 const overlayBody = document.getElementById("overlay-body");
+const pageLoader = document.getElementById("page-loader");
+const pageLoaderAscii = document.getElementById("page-loader-ascii");
 const bodyElement = document.body;
 const interactionMediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+const loaderStartAt = performance.now();
+
+const loaderState = {
+  intervalId: 0,
+  frame: 0,
+  minDurationMs: 1200,
+};
+
+const loaderFrames = window.initialLoaderFrames ?? ["[    ]", "[==  ]", "[====]"];
+
+function startPageLoader() {
+  if (!pageLoaderAscii) return;
+  pageLoaderAscii.textContent = loaderFrames[0];
+  loaderState.intervalId = window.setInterval(() => {
+    loaderState.frame = (loaderState.frame + 1) % loaderFrames.length;
+    pageLoaderAscii.textContent = loaderFrames[loaderState.frame];
+  }, 1000 / 24);
+}
+
+function stopPageLoader() {
+  if (!pageLoader) return;
+
+  if (loaderState.intervalId) {
+    window.clearInterval(loaderState.intervalId);
+    loaderState.intervalId = 0;
+  }
+
+  pageLoader.classList.add("is-hidden");
+  window.setTimeout(() => {
+    pageLoader.remove();
+  }, 300);
+}
+
+function completePageLoader() {
+  const elapsed = performance.now() - loaderStartAt;
+  const remaining = Math.max(0, loaderState.minDurationMs - elapsed);
+  window.setTimeout(stopPageLoader, remaining);
+}
 
 const backgroundRenderer = new THREE.WebGLRenderer({
   canvas: backgroundCanvas,
@@ -97,7 +137,7 @@ const driftRadius = new Float32Array(starCount);
 const depthLayer = new Float32Array(starCount);
 
 function createPlanetTexture(palette) {
-  const size = 768;
+  const size = 512;
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = size;
   textureCanvas.height = size;
@@ -192,7 +232,7 @@ function sampleFractalNoise(x, y, seed) {
 }
 
 function createEarthTexture() {
-  const size = 768;
+  const size = 512;
   const seed = Math.random() * 10;
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = size;
@@ -258,7 +298,7 @@ function createEarthTexture() {
 }
 
 function createMarsTexture() {
-  const size = 768;
+  const size = 512;
   const seed = Math.random() * 10;
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = size;
@@ -313,7 +353,7 @@ function createMarsTexture() {
 }
 
 function createVenusTexture() {
-  const size = 768;
+  const size = 512;
   const seed = Math.random() * 10;
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = size;
@@ -363,7 +403,7 @@ function createVenusTexture() {
 }
 
 function createNeptuneTexture() {
-  const size = 768;
+  const size = 512;
   const seed = Math.random() * 10;
   const textureCanvas = document.createElement("canvas");
   textureCanvas.width = size;
@@ -1333,28 +1373,38 @@ function spawnDecorAsteroid(object3d, scale) {
   );
 }
 
-const navObjects = navDefinitions.map((definition) => {
-  const body = createPlanetBody(definition);
-  const scale = definition.scale * 9.125;
-  body.userData.bodyType = "planet";
-  body.renderOrder = 2;
-  spawnNavObject(body, scale);
-  body.scale.setScalar(body.userData.baseScale);
-  syncPlanetLayer(body);
-  return body;
-});
+const navObjects = [];
+const decorAsteroids = [];
+let sceneBodiesInitialized = false;
 
-const decorAsteroids = Array.from({ length: 2 }, (_, index) => {
-  const body = createCelestialBody(createRandomDecorAsteroidDefinition(index));
-  body.userData.bodyType = "asteroid";
-  body.userData.decor = true;
-  body.renderOrder = 4;
-  body.material.depthTest = false;
-  spawnDecorAsteroid(body, body.userData.scale);
-  body.scale.setScalar(body.userData.baseScale);
-  syncDecorLayer(body);
-  return body;
-});
+function initializeSceneBodies() {
+  if (sceneBodiesInitialized) return;
+  sceneBodiesInitialized = true;
+
+  navDefinitions.forEach((definition) => {
+    const body = createPlanetBody(definition);
+    const scale = definition.scale * 9.125;
+    body.userData.bodyType = "planet";
+    body.renderOrder = 2;
+    spawnNavObject(body, scale);
+    body.scale.setScalar(body.userData.baseScale);
+    syncPlanetLayer(body);
+    navObjects.push(body);
+  });
+
+  Array.from({ length: 2 }, (_, index) => {
+    const body = createCelestialBody(createRandomDecorAsteroidDefinition(index));
+    body.userData.bodyType = "asteroid";
+    body.userData.decor = true;
+    body.renderOrder = 4;
+    body.material.depthTest = false;
+    spawnDecorAsteroid(body, body.userData.scale);
+    body.scale.setScalar(body.userData.baseScale);
+    syncDecorLayer(body);
+    decorAsteroids.push(body);
+    return body;
+  });
+}
 
 function openNavTarget(target) {
   if (target.userData.id === "contact") {
@@ -2087,4 +2137,14 @@ window.addEventListener("resize", () => {
     window.innerHeight * Math.min(window.devicePixelRatio, 2);
 });
 
-animate();
+backgroundRenderer.render(backgroundScene, camera);
+planetRenderer.render(planetScene, camera);
+objectRenderer.render(objectScene, camera);
+
+requestAnimationFrame(() => {
+  initializeSceneBodies();
+  completePageLoader();
+  requestAnimationFrame(animate);
+});
+
+startPageLoader();

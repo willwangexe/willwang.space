@@ -64,6 +64,34 @@ body.warp-invert h1 {
   color: #05070d;
 }
 
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 1;
+  transition: opacity 260ms ease;
+  pointer-events: auto;
+}
+
+.page-loader.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page-loader-ascii {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.96);
+  font-family: "Courier New", monospace;
+  font-size: clamp(0.26rem, 0.78vw, 0.5rem);
+  line-height: 1;
+  white-space: pre;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 #scene-canvas {
   position: fixed;
   inset: 0;
